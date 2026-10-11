@@ -117,7 +117,7 @@ const report = {};
   report.projectGroups = [...main.querySelectorAll(".sgroup:not(.missing) .sg-head")].map((h) => h.textContent);
   if (report.projectGroups.length !== 1 || !report.projectGroups[0].startsWith("acme---web")) errors.push("results page (project): expected this project alone, got " + JSON.stringify(report.projectGroups));
   report.scopeBar = [...main.querySelectorAll(".search-scope a")].map((a) => a.textContent + (a.classList.contains("on") ? "*" : ""));
-  if (report.scopeBar.join("|") !== "this project*|family|family & friends") errors.push("results page: scope bar wrong: " + JSON.stringify(report.scopeBar));
+  if (report.scopeBar.join("|") !== "this project*|family|family & friends|registry") errors.push("results page: scope bar wrong: " + JSON.stringify(report.scopeBar));
   const famLink = main.querySelector('.search-scope a[href="#search/family/needle"]');
   if (!famLink) errors.push("results page: no family link in the scope bar");
   window.location.hash = "#search/family/needle"; window.dispatchEvent(new window.Event("hashchange")); await tick(300);
@@ -143,6 +143,41 @@ const report = {};
   await tick(300);
   report.friendsDropdown = [...d.querySelectorAll("#search-results a.sr-scope")].map((a) => a.textContent);
   if (report.friendsDropdown.join("|") !== "Search in friends|Search in family & friends") errors.push("dropdown (refs): wider scopes wrong: " + JSON.stringify(report.friendsDropdown));
+  // "Find a project in the registry": the row reads the index on the click, the box's words then filter its projects
+  const regRow = d.querySelector("#search-results a.sr-registry");
+  if (!regRow) errors.push("dropdown: no registry row"); else {
+    regRow.click(); await tick(300);
+    const heads = [...d.querySelectorAll("#search-results .sr-head")].map((h) => h.textContent);
+    if (!heads.some((h) => /^Projects in the registry \(0 of 4\)/.test(h))) errors.push("registry row: index not read or needle matched a project: " + JSON.stringify(heads));
+    input.value = "farther"; input.dispatchEvent(new window.Event("input")); await tick(300);
+    const hits = [...d.querySelectorAll("#search-results a")].filter((a) => /farther/.test(a.textContent) && !a.classList.contains("sr-registry"));
+    report.registryHit = hits.map((a) => [a.getAttribute("href"), a.textContent]);
+    if (hits.length !== 1 || !hits[0].getAttribute("href").includes(`public=${encodeURIComponent(`${GH}/farther`)}`)) errors.push("registry row: farther not listed with a public-mode link: " + JSON.stringify(report.registryHit));
+    if (!/1 entry/.test(hits[0]?.textContent || "")) errors.push("registry row: the entry count is missing: " + JSON.stringify(report.registryHit));
+    input.value = "refs"; input.dispatchEvent(new window.Event("input")); await tick(300);
+    const me = [...d.querySelectorAll("#search-results a")].find((a) => /this project/.test(a.textContent));
+    if (!me || me.getAttribute("href") !== "#overview") errors.push("registry row: the project itself is not marked and linked to #overview: " + (me?.outerHTML || "none"));
+    input.value = "blocked"; input.dispatchEvent(new window.Event("input")); await tick(300);
+    if (!/without a CORS header/.test(d.getElementById("search-results").textContent)) errors.push("registry row: cors false not named");
+  }
+  // the registry's projects as a page: Enter with the row open, and the link in the bar
+  window.location.hash = "#search/registry/farther"; window.dispatchEvent(new window.Event("hashchange")); await tick(400);
+  report.registryPage = [...main.querySelectorAll(".sgroup .row")].map((a) => [a.getAttribute("href"), a.querySelector(".rt").textContent]);
+  if (report.registryPage.length !== 1 || !report.registryPage[0][0].includes(`public=${encodeURIComponent(`${GH}/farther`)}`)) errors.push("registry page: farther not the one hit with a public-mode link: " + JSON.stringify(report.registryPage));
+  if (!/1 project of 4 in the registry/.test(main.querySelector(".sub")?.textContent || "")) errors.push("registry page: the count line is wrong: " + main.querySelector(".sub")?.textContent);
+  if (!main.querySelector(".search-scope a.on[href=\"#search/registry/farther\"]")) errors.push("registry page: the bar does not mark registry");
+  if (!main.querySelector(".search-scope a[href=\"#search/friends/farther\"]")) errors.push("registry page: the bar does not lead back to the entry scopes");
+  window.location.hash = "#search/registry/needle"; window.dispatchEvent(new window.Event("hashchange")); await tick(400);
+  if (!/No project in the registry matches/.test(main.textContent)) errors.push("registry page: no-hit text missing");
+  if (!main.querySelector("a[href=\"#search/project/needle\"]")) errors.push("registry page: no way back to the entries");
+  window.location.hash = "#search/registry/refs"; window.dispatchEvent(new window.Event("hashchange")); await tick(400);
+  const selfRow = main.querySelector(".sgroup .row");
+  if (!selfRow || selfRow.getAttribute("href") !== "#overview" || !/this project/.test(selfRow.textContent)) errors.push("registry page: the project itself is not marked and linked to #overview: " + (selfRow?.outerHTML || "none"));
+  // Enter with the registry row open goes to that page
+  input.value = "blocked"; input.dispatchEvent(new window.Event("input")); await tick(300);
+  d.querySelector("#search-results a.sr-registry")?.click(); await tick(300); // the row, unless it is still open from above
+  input.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true })); await tick(400);
+  if (window.location.hash !== "#search/registry/blocked") errors.push("Enter with the registry row open did not open the registry page: " + window.location.hash);
   window.location.hash = "#search/friends/needle"; window.dispatchEvent(new window.Event("hashchange")); await tick(400);
   report.friendsGroups = [...main.querySelectorAll(".sgroup:not(.missing) .sg-head")].map((h) => h.textContent);
   report.friendsLinks = [...main.querySelectorAll(".sgroup .row")].map((a) => a.getAttribute("href"));
