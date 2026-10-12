@@ -4,6 +4,8 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [0.20.2] - 2026-10-12
+
 ### Added
 
 - Evals: the 0.20.1 series — 102, 101 and 104 of 104 across three consecutive full runs on the `v0.20.1` tag (2026-10-11, CLI 2.1.296, agent `claude-sonnet-5-5`, judge `claude-opus-5-5`), 100 cases 3/3, measured after the release and published as `docs/evals/0.20.1.md`. The series rule misses two lines — `organic-activation-no-config-proposes-nothing` 1 of 3 (the skill never loaded, the closing offer names it) and run 2 with three failed cases; guards clean. Documented as it came out; nothing is worked on from it.
@@ -12,6 +14,9 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ### Changed
 
+- The dashboard export on a project's site is published under `<site>/keep-the-why-dashboard/` — the badge, `dashboard-state` and the snippets for a docs build, GitHub Pages and GitLab Pages in `references/ci-linting.md`, `setup.md`, `llms.txt`, the badge and dashboard pages and the eval that sets a Pages workflow up. It was `<site>/dashboard/live/`: a generic name that can collide with a dashboard of the project's own and says nothing about what is there; the new one does both. A convention, not a migration — an export already published under the old path stays, `dashboard-state` and the badge name whatever path a project uses. keepthewhy.com itself keeps `/dashboard/live/`.
+- The skill's `description` ends with the restraint as a sentence of its own: *Anywhere else - no `.keep-the-why`, no such request - this skill is neither used nor offered nor named, not even in a closing offer to record something.* It was a parenthesis in the first clause, "(never offered or named otherwise)". Measured on the case where the skill is never loaded and the agent knows it only from its skill listing (`organic-activation-no-config-proposes-nothing`): 3 of 5 with the parenthesis, every failure a closing offer naming the skill; 5 of 5 with the sentence, the name in no transcript. The cases that must still load it — first-time setup, a retracted setup request, the help question, a complaint about the skill — 8 of 8, the complaint 5 of 5 on its own. `asm eval` unchanged at 80/100 (description 576 characters, over the evaluator's 250 as before).
+- `keep-the-why-lint` 0.20.2: knows `context-schema` 0.20.2; nothing structural changed.
 - Registry page: a paragraph on the search's *Find a project in the registry* row and the `#search/registry/<query>` page, beside the globe — the page named the globe as the only way into the registry from the dashboard.
 
 ## [0.20.1] - 2026-10-11
@@ -1011,7 +1016,8 @@ Initial release.
 - Logo, wordmark, and favicon.
 - `context/repo-conventions.md`, dogfooding the skill on its own repository from day one.
 
-[Unreleased]: https://github.com/oliver-zehentleitner/keep-the-why/compare/v0.20.1...HEAD
+[Unreleased]: https://github.com/oliver-zehentleitner/keep-the-why/compare/v0.20.2...HEAD
+[0.20.2]: https://github.com/oliver-zehentleitner/keep-the-why/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/oliver-zehentleitner/keep-the-why/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/oliver-zehentleitner/keep-the-why/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/oliver-zehentleitner/keep-the-why/compare/v0.18.2...v0.19.0
