@@ -49,6 +49,9 @@ button { font: inherit; color: inherit; }
 .brand img { display: block; }
 .brand .wordmark { height: 29px; width: auto; }
 .gh { color: var(--fg2); }
+.ext-icon { width: 0.85em; height: 0.85em; vertical-align: -0.08em; margin-left: 0.3em; fill: currentColor; flex: none; opacity: 0.75; }
+a.ext:hover .ext-icon { opacity: 1; }
+h3 a.config-file { font-weight: 400; font-size: 12px; margin-left: 8px; text-transform: none; letter-spacing: 0; }
 .host-mark { width: 1em; height: 1em; vertical-align: -0.15em; margin-right: 0.3em; fill: currentColor; flex: none; }
 .queue-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 8px 0 8px; }
 .queue-tiles a.tile { color: var(--fg); }
@@ -525,9 +528,9 @@ a.author:hover { color: var(--accent2); }
 .globe-list div { padding: 2px 0; }
 .globe-actions { display: flex; gap: 10px; justify-content: flex-end; }
 .globe-actions .primary { background: var(--accent); color: #fff; border: 0; border-radius: 5px; padding: 5px 12px; cursor: pointer; }
-.reader .crumbs .share-btn { float: right; background: transparent; border: 1px solid var(--line); border-radius: 4px; color: var(--fg3); font-size: 11px; padding: 1px 8px; cursor: pointer; }
-.reader .crumbs .share-btn:hover { color: var(--fg); border-color: var(--accent); }
-.reader .crumbs .share-btn.done { color: var(--active); border-color: var(--active); }
+.crumbs .share-btn { float: right; background: transparent; border: 1px solid var(--line); border-radius: 4px; color: var(--fg3); font-size: 11px; padding: 1px 8px; cursor: pointer; margin-left: 6px; font-family: inherit; line-height: 1.5; text-decoration: none; }
+.crumbs .share-btn:hover { color: var(--fg); border-color: var(--accent); }
+.crumbs .share-btn.done { color: var(--active); border-color: var(--active); }
 .globe-intro .globe-list p { margin: 4px 0 8px; line-height: 1.45; }
 .globe-intro .globe-actions label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
 .loaded-row.own { background: color-mix(in srgb, var(--accent) 8%, transparent); }

@@ -56,13 +56,28 @@ export function hostFileLink(canonical, branch, contextDir, file, anchor) {
   if (!canonical) return null;
   const base = canonical.replace(/\/$/, "");
   const ref = encodeURIComponent(branch && branch !== "HEAD" ? branch : "HEAD");
-  const path = `${contextDir || "context/"}${file}`;
+  const path = `${contextDir ?? "context/"}${file}`; // "" is a file at the repository root, such as .keep-the-why
   let seg;
   if (/^https:\/\/gitlab\./.test(base) || /\/-\//.test(base)) seg = `/-/blob/${ref}/`;
   else if (/^https:\/\/(codeberg\.org|gitea\.|forgejo\.)/.test(base)) seg = `/src/branch/${ref}/`;
   else if (/^https:\/\/bitbucket\.org/.test(base)) seg = `/src/${ref}/`;
   else seg = `/blob/${ref}/`; // GitHub and most GitHub-shaped forges
   return `${base}${seg}${path}${anchor ? "#" + anchor : ""}`;
+}
+
+// A directory of the repository as its host lists it — the context directory
+// of a project, under its root in a mono repository. Same grammars as the file.
+export function hostTreeLink(canonical, branch, dir) {
+  if (!canonical) return null;
+  const base = canonical.replace(/\/$/, "");
+  const ref = encodeURIComponent(branch && branch !== "HEAD" ? branch : "HEAD");
+  const path = String(dir || "").replace(/^\/+|\/+$/g, "");
+  let seg;
+  if (/^https:\/\/gitlab\./.test(base) || /\/-\//.test(base)) seg = `/-/tree/${ref}/`;
+  else if (/^https:\/\/(codeberg\.org|gitea\.|forgejo\.)/.test(base)) seg = `/src/branch/${ref}/`;
+  else if (/^https:\/\/bitbucket\.org/.test(base)) seg = `/src/${ref}/`;
+  else seg = `/tree/${ref}/`; // GitHub and most GitHub-shaped forges
+  return `${base}${seg}${path}`;
 }
 
 // The platform a repository lives on, read from its URL alone — one row per

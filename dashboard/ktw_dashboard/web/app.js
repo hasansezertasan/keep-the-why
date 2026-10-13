@@ -2,7 +2,7 @@
    The page knows only the state (see state.py): live from /api/events, or
    embedded as window.__KTW_STATE__ in an export. It renders; it never writes. */
 
-import { esc, plural, typeName, UUID_RE, isUuid, rawFileUrl, configLine, normalizeState, slug, hostFileLink, canonicalOf, parseSupersededBy, kindLabel, groupByFamily, searchTerms, searchHit, registryMatches, compareHits, snippetAt, highlight, resolveLocation, linkFamily, authorLookup, mergeStates, friendsOf, thoughtsOf, thoughtInsights, hostOf, backlinksUrl, citingOf, hostAnchor , todayISO, addDays, dayDiff, existsAt, statusAt, seeDay, supersededDay, linkExistsAt, daySpan, createdOn, TYPE_KINDS, TYPE_COLORS, typeKind, SHELF, stageCards, stageLinks, markLinked, stageLanes, logDepth, percentileBox, pushApart, stageHeight, mergeAuthors } from "./lib.js";
+import { esc, plural, typeName, UUID_RE, isUuid, rawFileUrl, configLine, normalizeState, slug, hostFileLink, hostTreeLink, canonicalOf, parseSupersededBy, kindLabel, groupByFamily, searchTerms, searchHit, registryMatches, compareHits, snippetAt, highlight, resolveLocation, linkFamily, authorLookup, mergeStates, friendsOf, thoughtsOf, thoughtInsights, hostOf, backlinksUrl, citingOf, hostAnchor , todayISO, addDays, dayDiff, existsAt, statusAt, seeDay, supersededDay, linkExistsAt, daySpan, createdOn, TYPE_KINDS, TYPE_COLORS, typeKind, SHELF, stageCards, stageLinks, markLinked, stageLanes, logDepth, percentileBox, pushApart, stageHeight, mergeAuthors } from "./lib.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const narrow = () => !!window.matchMedia?.("(max-width: 900px)").matches;
@@ -30,6 +30,15 @@ function hostMark(url) {
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path"); path.setAttribute("d", h.path);
   svg.append(path); return svg;
 }
+// the "opens elsewhere" mark after a link that leaves the page: a box with an arrow out of it
+function extIcon() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24"); svg.setAttribute("class", "ext-icon"); svg.setAttribute("aria-hidden", "true");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", "M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z");
+  svg.append(path); return svg;
+}
+const extLink = (href, text, cls = "") => el("a", { class: `ext ${cls}`.trim(), href, target: "_blank", rel: "noopener" }, text, extIcon());
 const remoteLink = (remote) => el("a", { class: "gh", href: `https://${remote}`, target: "_blank", rel: "noopener" }, hostMark(remote), remote);
 const onGitHub = (g) => !!g?.remote && /^github\.com\//.test(g.remote);
 // a fork checkout: `origin` is the fork, the published repository is elsewhere — read from
@@ -459,6 +468,19 @@ function markActive() {
 }
 
 // ---------------------------------------------------------------- views
+// the .keep-the-why file itself on the host, beside the card's heading — under the root in a mono repository
+function configFileLink(p) {
+  const href = hostFileLink(canonicalOf(p), p.git?.branch, p.root ? `${p.root.replace(/\/$/, "")}/` : "", p.config_file || ".keep-the-why", null);
+  return href ? [" ", extLink(href, p.config_file || ".keep-the-why", "mono note config-file")] : null;
+}
+// a Config value: the three that are addresses open where they point — canonical and dashboard-state as
+// written, context as the directory on the host (under the root in a mono repository); the rest is text
+function configValue(p, key, v) {
+  const href = key === "canonical" || key === "dashboard-state" ? (/^https?:\/\//.test(v) ? v : null)
+    : key === "context" ? hostTreeLink(canonicalOf(p), p.git?.branch, [p.root, p.context || String(v).replace(/^`|`$/g, "")].filter(Boolean).join("/")) : null;
+  return href ? extLink(href, v, "v mono") : el("span", { class: "v mono" }, v);
+}
+
 function viewOverview(main) {
   const list = S.entries;
   const p = S.project; const g = p.git;
@@ -473,7 +495,7 @@ function viewOverview(main) {
       el("div", { class: "card" }, el("h3", {}, "Type"), bars(typeCounts(list), ["decision", "constraint", "workaround", "incident", "undefined"])),
       el("div", { class: "card" }, el("h3", {}, "Status"), bars(count(list, "status"), STATUS_ORDER)),
       el("div", { class: "card" }, el("h3", {}, "Evidence"), bars(count(list, "evidence"), EV_ORDER)),
-      el("div", { class: "card" }, el("h3", {}, "Config"), el("div", { class: "kv" }, Object.entries(p.config).map(([k, v]) => [el("span", { class: "k" }, k), el("span", { class: "v mono" }, v)])),
+      el("div", { class: "card" }, el("h3", {}, "Config", configFileLink(p)), el("div", { class: "kv" }, Object.entries(p.config).map(([k, v]) => [el("span", { class: "k" }, k), configValue(p, k, v)])),
         Object.keys(p.personal_defaults || {}).length ? [el("h3", {}, "Personal defaults offered"), el("div", { class: "kv" }, Object.entries(p.personal_defaults).map(([k, v]) => [el("span", { class: "k" }, k), el("span", { class: "v mono" }, v)]))] : null),
     ),
     el("h2", {}, "Topics"),
@@ -495,7 +517,7 @@ function viewTopic(main, file) {
   if (!t) return main.append(el("p", { class: "center" }, `No topic ${file}`));
   const list = entriesOf(file);
   main.append(
-    el("div", { class: "crumbs" }, el("a", { href: "#overview" }, "Overview"), " / ", t.file),
+    el("div", { class: "crumbs" }, el("a", { href: "#overview" }, "Overview"), " / ", t.file, copyLinkButton(shareUrlFor(`#topic/${t.file}`, t.project), "topic"), sourceLink(topicHostHref(t))),
     el("h1", {}, t.title),
     el("p", { class: "sub" }, t.index_line || "—"),
     el("div", { class: "grid2" },
@@ -594,22 +616,33 @@ function refLine(ref, label) {
 // The address to share an entry by: on a published page (an export, public mode) the page's own address; on
 // the live server — a local address nobody else can open — the project's published dashboard, from its
 // dashboard-state line, when it has one; the local address only as a last resort, and then said so.
-function shareUrlOf(e) {
+// the address to share for a hash on this page — an entry's or a topic's: the page itself when it is published,
+// else the project's published dashboard (its own entries and topics only), else this machine
+function shareUrlFor(hash, project) {
   const local = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1\]?$)/.test(location.hostname) || location.protocol === "file:";
-  const here = location.href.split("#")[0] + entryHref(e);
+  const here = location.href.split("#")[0] + hash;
   if (PUBLISHED() && !local) return { url: here, where: "this page" };
-  const st = e.project ? null : (SELF?.project?.dashboard_state || S?.project?.dashboard_state || "");
-  if (st && /^https:\/\//.test(st)) return { url: st.replace(/state\.json$/, "") + entryHref(e), where: "the project's published dashboard" };
+  const st = project ? null : (SELF?.project?.dashboard_state || S?.project?.dashboard_state || "");
+  if (st && /^https:\/\//.test(st)) return { url: st.replace(/state\.json$/, "") + hash, where: "the project's published dashboard" };
   return { url: here, where: local ? "this machine only — the project publishes no dashboard" : "this page" };
 }
+const shareUrlOf = (e) => shareUrlFor(entryHref(e), e.project);
+// the entry's or topic's file on the host, in the repository it lives in (a merged member's in its own)
+const hostProjectOf = (x) => x.origin?.state?.project || S.project;
+// the context directory as a path in the repository: under the root in a mono repository (core/context/)
+const hostContextDir = (P) => `${P.root ? P.root.replace(/\/$/, "") + "/" : ""}${P.context || "context/"}`;
+const entryHostHref = (e) => { const P = hostProjectOf(e); return hostFileLink(canonicalOf(P), P.git?.branch, hostContextDir(P), e.localFile || e.file, hostAnchor(e.title)); }; // GitHub's anchor, not the entry id
+const topicHostHref = (t) => { const P = hostProjectOf(t); return hostFileLink(canonicalOf(P), P.git?.branch, hostContextDir(P), t.localFile || t.file, null); };
+// "open source": the Markdown file on the host, beside the copy-link button; nothing without a canonical
+const sourceLink = (href) => href ? extLink(href, "open source", "share-btn source-link") : null;
 async function copyText(text) {
   try { await navigator.clipboard.writeText(text); return true; } catch { /* no clipboard API: the old way */ }
   const ta = el("textarea", { style: "position:fixed;opacity:0" }); ta.value = text; document.body.append(ta); ta.select();
   let ok = false; try { ok = document.execCommand("copy"); } catch {} ta.remove(); return ok;
 }
-function shareButton(e) {
-  const s = shareUrlOf(e);
-  const b = el("button", { type: "button", class: "share-btn", title: `copy a link to this entry — ${s.where}:\n${s.url}`,
+function shareButton(e) { return copyLinkButton(shareUrlOf(e), "entry"); }
+function copyLinkButton(s, what) {
+  const b = el("button", { type: "button", class: "share-btn", title: `copy a link to this ${what} — ${s.where}:\n${s.url}`,
     onclick: async () => { const ok = await copyText(s.url); b.textContent = ok ? "✓ copied" : "copy failed"; b.classList.toggle("done", ok); setTimeout(() => { b.textContent = "⧉ copy link"; b.classList.remove("done"); }, 1800); } }, "⧉ copy link");
   return b;
 }
@@ -622,7 +655,7 @@ function viewEntry(main, id) {
   const t = topicOf(e.file);
   INLINE_PROJECT = e.project || null;
   const r = el("div", { class: `reader ${e.status}` },
-    el("div", { class: "crumbs" }, el("a", { href: "#overview" }, "Overview"), " / ", el("a", { href: `#topic/${e.file}` }, t?.title || e.file), ` / line ${e.line}`, shareButton(e)),
+    el("div", { class: "crumbs" }, el("a", { href: "#overview" }, "Overview"), " / ", el("a", { href: `#topic/${e.file}` }, t?.title || e.file), ` / line ${e.line}`, shareButton(e), sourceLink(entryHostHref(e))),
     el("h1", { html: inline(e.title) }),
     el("div", { class: "fields" }, ...entryPills(e), e.source ? el("span", { class: "pill", html: `Source: ${inline(e.source)}` }) : null, e.verification ? el("span", { class: "pill", html: `Verification: ${inline(e.verification.split(/\s[—-]\s/)[0])}` }) : null),
     el("div", { class: "body", html: renderMarkdown(e.body.text || "_(no body)_") }),
@@ -1045,8 +1078,8 @@ function renderDetailsTopic(t) {
 function renderDetailsEntry(e) {
   const d = $("#details"); d.replaceChildren();
   const g = e.git;
-  const P = e.origin?.state?.project || S.project; // a merged member's entry lives in its own repository
-  const hostHref = hostFileLink(canonicalOf(P), P.git?.branch, P.context, e.localFile || e.file, hostAnchor(e.title)); // GitHub's anchor, not the entry id
+  const P = hostProjectOf(e); // a merged member's entry lives in its own repository
+  const hostHref = entryHostHref(e);
   d.append(el("h3", {}, "Entry"), el("div", { class: "kv" },
     e.uuid ? [el("span", { class: "k" }, "Id"), el("span", { class: "v mono", title: "the entry's address — what See and Superseded by lines resolve to" }, e.uuid)] : null,
     e.project ? [el("span", { class: "k" }, "project"), el("span", { class: "v" }, e.origin?.href ? el("a", { href: memberLink(e.origin.member, "#overview") }, e.project) : e.project)] : null,
