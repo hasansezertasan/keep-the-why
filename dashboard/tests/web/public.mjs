@@ -19,7 +19,7 @@ const app = fs.readFileSync(W + "app.js", "utf8").replace(/^import \{[^}]*\} fro
 // jsdom runs no module scripts: lib and app go into the page as one classic
 // script, which jsdom runs itself (as in smoke.mjs; this file runs no code
 // strings). split/join, not replace: the sources contain `$&`-like sequences.
-const html = fs.readFileSync(W + "index.html", "utf8").split('<script type="module" src="/static/app.js"></script>').join("<script>" + lib + "\n" + app + "\nwindow.__fg = () => fgraph; window.__g = () => graph; window.__stage = () => STAGE; // test hooks</script>");
+const html = fs.readFileSync(W + "index.html", "utf8").split('<script type="module" src="/static/app.js"></script>').join("<script>" + lib + "\n" + app + "\nwindow.__fg = () => fgraph; window.__g = () => graph; window.__stage = () => STAGE; window.__active = () => [...ACTIVE_GRAPHS]; window.__chainAdd = async (canonical, uuid) => { const f = { canonical, uuids: [uuid] }; CHAIN.extra.set(fkey(canonical), f); await loadFriend(f); if (fgraph) fgraph.at = 0; render(); }; // test hooks</script>");
 
 const GH = "https://github.com/acme";
 const config = (id, lines) => `<!-- keep-the-why:config -->\n- id: ${id}\n${lines.join("\n")}\n<!-- /keep-the-why:config -->\n`;
@@ -914,6 +914,44 @@ const report = {};
   }
   window.close();
   FILES[IDX] = saved;
+}
+{
+  // the Family view: pointing at a member's row spots that member in the graph beside — in a repository holding
+  // several projects (suite and its docs share the canonical, differ by root) the row's own, not the first by canonical
+  const window = await open(`http://localhost/?public=${encodeURIComponent(`${GH}/suite`)}#family`);
+  await tick(800);
+  const d = window.document;
+  const rowOf = (name) => [...d.querySelectorAll(".family .member")].find((r) => r.querySelector(".mr b, .mr a")?.textContent === name);
+  const spotted = () => window.__active().flatMap((g) => [...(g.spot || [])].filter((n) => n.kind === "project").map((n) => n.label));
+  const docs = rowOf("docs");
+  if (!docs) errors.push("family spot: no docs row in the Family view of suite"); else {
+    docs.dispatchEvent(new window.MouseEvent("mouseenter")); await tick(100);
+    report.familySpotDocs = spotted();
+    if (!report.familySpotDocs.includes("docs")) errors.push("family spot: pointing at docs does not spot docs in the graph: " + JSON.stringify(report.familySpotDocs));
+    if (report.familySpotDocs.some((l) => /suite/.test(l))) errors.push("family spot: pointing at docs spots suite (same canonical, other root): " + JSON.stringify(report.familySpotDocs));
+    docs.dispatchEvent(new window.MouseEvent("mouseleave")); await tick(50);
+    const self = rowOf("acme---suite");
+    self?.dispatchEvent(new window.MouseEvent("mouseenter")); await tick(100);
+    report.familySpotSelf = spotted();
+    if (report.familySpotSelf.includes("docs")) errors.push("family spot: pointing at suite itself spots docs: " + JSON.stringify(report.familySpotSelf));
+  }
+  window.close();
+}
+{
+  // a thought that leads into this project's own family (here: web's parent, suite, whose family is web's) loads it as a
+  // unit like a friend; the family is drawn already, so it must not come a second time as "via a thought"
+  const window = await open(`http://localhost/?public=${encodeURIComponent(`${GH}/web`)}#graph`);
+  await tick(600);
+  const d = window.document;
+  const chainHubs = (g) => (g?.nodes || []).filter((n) => n.kind === "project" && n.chain).map((n) => n.label);
+  await window.__chainAdd(`${GH}/suite`, SUITE_ID); await tick(500);
+  report.chainIntoFamilyProject = chainHubs(window.__g());
+  if (report.chainIntoFamilyProject.length) errors.push("thought into the family (project graph): the family is drawn again via a thought: " + JSON.stringify(report.chainIntoFamilyProject));
+  d.querySelector('#scope button[data-scope="family"]').click(); await tick(800);
+  report.chainIntoFamilyTree = chainHubs(window.__fg());
+  if (!window.__fg()) errors.push("thought into the family: no family graph after the family scope — the test does not cover the case");
+  if (report.chainIntoFamilyTree.length) errors.push("thought into the family (family graph): the family is drawn again via a thought: " + JSON.stringify(report.chainIntoFamilyTree));
+  window.close();
 }
 console.log(JSON.stringify(report, null, 1));
 console.log("ERRORS:", errors.length); for (const e of errors) console.log("  " + e);
